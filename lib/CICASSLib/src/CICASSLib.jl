@@ -44,7 +44,8 @@ using CodeBridge
 using CodeBridge: @xcall
 
 export CICASSSpec, generate, make_tf, read_snapshot, CICASSSnapshot,
-       available, libpath, transfer_path, real_bytes, last_error, version
+       available, libpath, transfer_path, real_bytes, last_error, version,
+       thermal_state, multispecies_fractions, recfast_path
 
 "Shared-library file name for this platform."
 libname() = Sys.isapple() ? "libcicass_capi.dylib" : "libcicass_capi.so"
@@ -98,6 +99,7 @@ real_bytes() = Int(@xcall(:cicass_real_bytes, Cint, ()))
 
 include("ic.jl")
 include("snapshot.jl")
+include("thermo.jl")
 
 # ── worker loop (subprocess transport, for multi-code sessions) ──────────────
 """

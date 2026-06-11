@@ -18,6 +18,25 @@ const CL = CICASSLib
         @test CL._tf_gridname(s0) == "initSimCartZI200.0_Vbc0.0_256_1.0.dat"
     end
 
+    # ── RECFAST thermal-state provider (no library needed, just the table) ──
+    @testset "thermal_state / multispecies" begin
+        if isfile(CICASSLib.recfast_path())
+            s = thermal_state(1000.0)
+            @test isapprox(s.x_e, 0.047; atol = 0.01)        # residual ionization at z=1000
+            @test isapprox(s.T_gas, 2728.0; rtol = 0.05)     # gas ≈ T_CMB at z=1000
+            @test isapprox(s.T_cmb, 2.73 * 1001; rtol = 1e-6)
+            @test s.T_gas < s.T_cmb || isapprox(s.T_gas, s.T_cmb; rtol = 0.05)
+            # decoupled at low z: gas colder than CMB
+            @test thermal_state(50.0).T_gas < thermal_state(50.0).T_cmb
+            mf = multispecies_fractions(1000.0)
+            @test isapprox(mf.HI + mf.HII, 0.76; rtol = 1e-6) # hydrogen mass fraction
+            @test isapprox(mf.HII, mf.e; rtol = 1e-9)         # charge balance (H-dominated)
+            @test mf.H2I == 0.0
+        else
+            @info "CICASS RECFAST table not found; skipping thermal_state tests"
+        end
+    end
+
     if !CICASSLib.available()
         @info "CICASSLib: library not built; skipping generation tests" lib = CICASSLib.libpath()
     else
