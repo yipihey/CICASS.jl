@@ -1,0 +1,8 @@
+[deps]
+CICASSLib = "faf74867-2ca8-40c5-abb4-1e9353a0082c"
+CodeBridge = "1a2b3c4d-0010-4000-8000-000000000010"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+CICASSLib = {path = ".."}
+CodeBridge = {path = "../../../../enzo-dev/EnzoNG.jl/lib/CodeBridge"}
