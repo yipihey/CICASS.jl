@@ -29,7 +29,13 @@ Fields (all keyword):
 - `tf_base` — base name of the CAMB transfer files (`-S`; shipped = `initSB_transfer_out`)
 - `glass_file` — absolute path to the glass file (`-g`)
 - `filename` — base output name (`<filename>.cicass`)
+- `real_bytes` — field storage bytes in the `.cicass` snapshot: 8 (`CICASS01`) or 4 (`CICASSF4`)
 """
+function _default_real_bytes()
+    n = tryparse(Int, get(ENV, "CICASS_REAL_BYTES", "8"))
+    return n == 4 ? 4 : 8
+end
+
 Base.@kwdef struct CICASSSpec
     boxlength::Float64
     zstart::Float64    = 100.0
@@ -45,6 +51,7 @@ Base.@kwdef struct CICASSSpec
     tf_base::String    = "initSB_transfer_out"
     glass_file::String = ""
     filename::String   = "cicass_ics"
+    real_bytes::Int    = _default_real_bytes()
 end
 
 "Default glass-file path from the sibling checkout."
@@ -68,11 +75,12 @@ function _ic_threads()
     return Sys.CPU_THREADS
 end
 
-function _with_ic_thread_env(f)
+function _with_ic_thread_env(f; real_bytes::Union{Nothing,Integer} = nothing)
     n = string(_ic_threads())
-    old = Dict(k => get(ENV, k, nothing) for k in ("CICASS_FFT_THREADS", "OMP_NUM_THREADS"))
+    old = Dict(k => get(ENV, k, nothing) for k in ("CICASS_FFT_THREADS", "OMP_NUM_THREADS", "CICASS_REAL_BYTES"))
     ENV["CICASS_FFT_THREADS"] = n
     haskey(ENV, "OMP_NUM_THREADS") || (ENV["OMP_NUM_THREADS"] = n)
+    real_bytes === nothing || (ENV["CICASS_REAL_BYTES"] = string(real_bytes == 4 ? 4 : 8))
     try
         return f()
     finally
@@ -131,6 +139,7 @@ With `check=true`, a non-zero return raises with [`last_error`](@ref).
 """
 function generate(spec::CICASSSpec; workdir::AbstractString = mktempdir(),
                   tf_file::Union{Nothing,AbstractString} = nothing, check::Bool = true)
+    spec.real_bytes in (4, 8) || error("CICASSSpec.real_bytes must be 4 or 8 (got $(spec.real_bytes))")
     mkpath(workdir)
     glass = isempty(spec.glass_file) ? _default_glass() : spec.glass_file
     isfile(glass) || error("glass file not found: $glass")
@@ -147,7 +156,7 @@ function generate(spec::CICASSSpec; workdir::AbstractString = mktempdir(),
                  "-S$(spec.species)", "-R$(spec.seed)",
                  "-g$(glass)", "-o.", "-b$(spec.filename)"], " ")
     rc = cd(workdir) do
-        _with_ic_thread_env() do
+        _with_ic_thread_env(; real_bytes=spec.real_bytes) do
             cicass_generate(args)
         end
     end

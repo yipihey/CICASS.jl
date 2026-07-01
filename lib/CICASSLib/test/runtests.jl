@@ -14,8 +14,29 @@ const CL = CICASSLib
     @testset "spec / TF-grid name" begin
         spec = CICASSSpec(boxlength = 0.2, zstart = 100.0, ngrid = 128, vbc = 30.0)
         @test CL._tf_gridname(spec) == "initSimCartZI100.0_Vbc30.0_128_0.2.dat"
+        @test spec.real_bytes in (4, 8)
+        @test CICASSSpec(boxlength = 0.2, real_bytes = 4).real_bytes == 4
         s0 = CICASSSpec(boxlength = 1.0, zstart = 200.0, ngrid = 256, vbc = 0.0)
         @test CL._tf_gridname(s0) == "initSimCartZI200.0_Vbc0.0_256_1.0.dat"
+    end
+
+    @testset "CICASSF4 snapshot reader" begin
+        path = tempname() * ".cicass"
+        n = 2; n3 = n^3
+        open(path, "w") do io
+            write(io, "CICASSF4")
+            write(io, Int32(n), Int32(2))
+            write(io, Float64.([0.2, 100.0, 0.27, 0.046, 0.73, 0.71, 1.0, 0.1, 30.0, 100.0]))
+            cols = [fill(Float32(0.1 * d), n3) for d in 1:11]
+            cols[4] .= 0f0; cols[5] .= 0f0; cols[6] .= 0f0
+            cols[8] .= 1f0; cols[9] .= 2f0; cols[10] .= 3f0
+            foreach(c -> write(io, c), cols)
+        end
+        snap = read_snapshot(path)
+        @test snap.n == n
+        @test eltype(snap.dm_pos) === Float32
+        @test eltype(snap.gas_delta) === Float32
+        @test CL.streaming_velocity(snap) == (1.0, 2.0, 3.0)
     end
 
     # ── RECFAST thermal-state provider (no library needed, just the table) ──
