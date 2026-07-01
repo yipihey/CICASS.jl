@@ -71,15 +71,15 @@ end
 """
     read_snapshot(path::AbstractString) -> CICASSSnapshot
 
-Load a `.cicass` raw dump. `CICASS01` stores f64 fields; `CICASSF4` stores f32
-fields. Header metadata remains f64 in both formats.
+Load a `.cicass` raw dump. `CICASS01` stores f64 fields; `CICASS02` stores f32
+fields. The temporary `CICASSF4` magic is accepted for local pre-merge f32 files.
+Header metadata remains f64 in all formats.
 """
 function read_snapshot(path::AbstractString)
     open(path, "r") do io
-        magic = read(io, 8)
-        magic_s = String(magic)
+        magic_s = String(read(io, 8))
         field_type = magic_s == "CICASS01" ? Float64 :
-                     magic_s == "CICASSF4" ? Float32 :
+                     (magic_s == "CICASS02" || magic_s == "CICASSF4") ? Float32 :
                      error("not a CICASS snapshot (bad magic $(repr(magic_s))): $path")
         n   = Int(read(io, Int32))
         nsp = Int(read(io, Int32))

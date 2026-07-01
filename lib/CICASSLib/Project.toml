@@ -8,7 +8,7 @@ CodeBridge = "1a2b3c4d-0010-4000-8000-000000000010"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [sources]
-CodeBridge = {path = "../../../enzo-dev/EnzoNG.jl/lib/CodeBridge"}
+CodeBridge = {path = "../../../Vespa.jl/lib/CodeBridge"}
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

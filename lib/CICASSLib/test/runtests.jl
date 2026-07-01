@@ -20,11 +20,11 @@ const CL = CICASSLib
         @test CL._tf_gridname(s0) == "initSimCartZI200.0_Vbc0.0_256_1.0.dat"
     end
 
-    @testset "CICASSF4 snapshot reader" begin
+    @testset "CICASS02 snapshot reader" begin
         path = tempname() * ".cicass"
         n = 2; n3 = n^3
         open(path, "w") do io
-            write(io, "CICASSF4")
+            write(io, "CICASS02")
             write(io, Int32(n), Int32(2))
             write(io, Float64.([0.2, 100.0, 0.27, 0.046, 0.73, 0.71, 1.0, 0.1, 30.0, 100.0]))
             cols = [fill(Float32(0.1 * d), n3) for d in 1:11]
@@ -63,7 +63,7 @@ const CL = CICASSLib
     else
         @testset "version / precision" begin
             @test occursin("CICASS", CICASSLib.version())
-            @test CICASSLib.real_bytes() == 8
+            @test CICASSLib.real_bytes() in (4, 8)
         end
 
         # ── v_bc = 0: two-component IC, zero streaming offset ────────────────
