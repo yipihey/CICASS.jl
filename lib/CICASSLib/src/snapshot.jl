@@ -50,9 +50,11 @@ Load a `.cicass` raw dump (little-endian f64; see `capi_out.c` for the layout).
 """
 function read_snapshot(path::AbstractString)
     open(path, "r") do io
-        magic = read(io, 8)
-        String(magic) == "CICASS01" ||
-            error("not a CICASS snapshot (bad magic $(repr(String(magic)))): $path")
+        magic = String(read(io, 8))
+        # CICASS01 = f64 field body; CICASS02 = f32 body (half the file + read I/O).
+        f32body = magic == "CICASS02"
+        (magic == "CICASS01" || f32body) ||
+            error("not a CICASS snapshot (bad magic $(repr(magic))): $path")
         n   = Int(read(io, Int32))
         nsp = Int(read(io, Int32))
         hd  = Vector{Float64}(undef, 10)
@@ -60,7 +62,11 @@ function read_snapshot(path::AbstractString)
         box, zinit, omm, omb, oml, h, mdm, mgas, vbc, tavg = hd
         N3 = n * n * n
 
-        rdcol() = (v = Vector{Float64}(undef, N3); read!(io, v); v)
+        rdcol() = if f32body
+            v32 = Vector{Float32}(undef, N3); read!(io, v32); Float64.(v32)   # read f32, promote
+        else
+            v = Vector{Float64}(undef, N3); read!(io, v); v
+        end
         # DM particles: pos x,y,z then vel x,y,z (axis-contiguous)
         px, py, pz = rdcol(), rdcol(), rdcol()
         vx, vy, vz = rdcol(), rdcol(), rdcol()
