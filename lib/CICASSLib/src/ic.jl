@@ -58,6 +58,30 @@ _tf_gridname(spec::CICASSSpec) =
 # CICASS uses C `%.1lf` formatting in the filename; reproduce it exactly.
 _f1(x::Real) = string(round(Float64(x); digits = 1))
 
+function _ic_threads()
+    for key in ("CICASS_FFT_THREADS", "FFTW_NUM_THREADS", "OMP_NUM_THREADS")
+        if haskey(ENV, key)
+            n = tryparse(Int, ENV[key])
+            n !== nothing && n > 0 && return n
+        end
+    end
+    return Sys.CPU_THREADS
+end
+
+function _with_ic_thread_env(f)
+    n = string(_ic_threads())
+    old = Dict(k => get(ENV, k, nothing) for k in ("CICASS_FFT_THREADS", "OMP_NUM_THREADS"))
+    ENV["CICASS_FFT_THREADS"] = n
+    haskey(ENV, "OMP_NUM_THREADS") || (ENV["OMP_NUM_THREADS"] = n)
+    try
+        return f()
+    finally
+        for (k, v) in old
+            v === nothing ? delete!(ENV, k) : (ENV[k] = v)
+        end
+    end
+end
+
 """
     make_tf(spec::CICASSSpec; outdir=mktempdir(), force=false) -> String
 
@@ -86,7 +110,9 @@ function make_tf(spec::CICASSSpec; outdir::AbstractString = mktempdir(), force::
     # NB transfer.x returns a non-zero exit code even on success — gate on the
     # output file, not the status.
     cd(vbcdir) do
-        run(pipeline(ignorestatus(`$tx $args`); stdout = devnull))
+        _with_ic_thread_env() do
+            run(pipeline(ignorestatus(`$tx $args`); stdout = devnull))
+        end
     end
     isfile(src) || error("transfer.x did not produce $src (args: $(join(args, ' ')))")
     cp(src, dest; force = true)
@@ -121,7 +147,9 @@ function generate(spec::CICASSSpec; workdir::AbstractString = mktempdir(),
                  "-S$(spec.species)", "-R$(spec.seed)",
                  "-g$(glass)", "-o.", "-b$(spec.filename)"], " ")
     rc = cd(workdir) do
-        cicass_generate(args)
+        _with_ic_thread_env() do
+            cicass_generate(args)
+        end
     end
     if check && rc != 0
         error("CICASS failed (rc=$rc) for vbc=$(spec.vbc): ", last_error())
