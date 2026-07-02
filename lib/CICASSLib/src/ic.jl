@@ -47,6 +47,13 @@ Base.@kwdef struct CICASSSpec
     hconst::Float64    = 0.71
     species::Int       = 2
     seed::Int          = 113334
+    # Angulo & Pontzen (2016) variance-suppressed ICs. `fix_amplitude`: set every Fourier mode's
+    # amplitude to exactly sqrt(P(k)) (random phases only) so the realized P(k) matches the input
+    # mode-by-mode — kills box-to-box amplitude scatter. `flip_phase`: invert all phases for the
+    # PAIRED run (average the fix_amplitude pair {flip_phase=false,true} to cancel leading
+    # non-Gaussian variance). Both default off ⇒ standard Rayleigh realization.
+    fix_amplitude::Bool = false
+    flip_phase::Bool    = false
     tf_mode::Int       = 1
     tf_base::String    = "initSB_transfer_out"
     glass_file::String = ""
@@ -154,6 +161,7 @@ function generate(spec::CICASSSpec; workdir::AbstractString = mktempdir(),
                  "-G$(spec.glass_dim)", "-Z$(round(Int, spec.zstart))",
                  "-H$(spec.hconst)", "-O$(spec.Omega_m)", "-B$(spec.Omega_b)",
                  "-S$(spec.species)", "-R$(spec.seed)",
+                 "-F$(spec.fix_amplitude ? 1 : 0)", "-I$(spec.flip_phase ? 1 : 0)",
                  "-g$(glass)", "-o.", "-b$(spec.filename)"], " ")
     rc = cd(workdir) do
         _with_ic_thread_env(; real_bytes=spec.real_bytes) do
